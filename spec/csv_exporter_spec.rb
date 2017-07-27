@@ -136,7 +136,6 @@ describe CsvExporter do
       CsvExporter.import_file_row_with_error_handling(
         @row, false, @errors, @dtaus
       ).should be == [@errors, @dtaus]
-      CsvExporter.import_retry_count.should == 1
     end
 
     it 'handles exception in row' do

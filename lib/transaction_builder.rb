@@ -57,12 +57,6 @@ module TransactionBuilder
 
   def import_file(file, validation_only = false)
     @errors = []
-    line = 2
-    source_path = "#{Rails.root}/private/upload"
-    path_and_name = "#{source_path}/csv/tmp_mraba/DTAUS#{Time.now.strftime('%Y%m%d_%H%M%S')}"
-
-    FileUtils.mkdir_p "#{source_path}/csv"
-    FileUtils.mkdir_p "#{source_path}/csv/tmp_mraba"
 
     @dtaus = Mraba::Transaction.define_dtaus('RS', 8_888_888_888, 99_999_999, 'Credit collection')
     success_rows = []
@@ -70,18 +64,27 @@ module TransactionBuilder
 
     import_rows.each do |index, row|
       next if index.blank?
-      break unless validate_import_row(row)
-      errors, dtaus = import_file_row_with_error_handling(row, validation_only, @errors, @dtaus)
-      line += 1
+      break unless import_row_valid?(row)
+      @errors, @dtaus = import_file_row_with_error_handling(row, validation_only, @errors, @dtaus)
       break unless @errors.empty?
       success_rows << row['ACTIVITY_ID']
     end
 
     if @errors.empty? && !validation_only
-      @dtaus.add_datei("#{path_and_name}_201_mraba.csv") unless @dtaus.is_empty?
+      add_datei
     end
 
     { success: success_rows, errors: @errors }
+  end
+
+  def add_datei
+    source_path = "#{Rails.root}/private/upload"
+    path_and_name = "#{source_path}/csv/tmp_mraba/DTAUS#{Time.now.strftime('%Y%m%d_%H%M%S')}"
+
+    FileUtils.mkdir_p "#{source_path}/csv"
+    FileUtils.mkdir_p "#{source_path}/csv/tmp_mraba"
+
+    @dtaus.add_datei("#{path_and_name}_201_mraba.csv") unless @dtaus.is_empty?
   end
 
   def import_file_row(row, validation_only, errors, dtaus)
@@ -97,26 +100,21 @@ module TransactionBuilder
 
   def import_file_row_with_error_handling(row, validation_only, errors, dtaus)
     error_text = nil
-    self.import_retry_count = 0
-    5.times do
-      self.import_retry_count += 1
-      error_text = nil
-      begin
-        import_file_row(row, validation_only, errors, dtaus)
-        break
-      rescue => e
-        error_text = "#{row['ACTIVITY_ID']}: #{e}"
-        break
-      end
+    begin
+      import_file_row(row, validation_only, errors, dtaus)
+    rescue => e
+      error_text = "#{row['ACTIVITY_ID']}: #{e}"
+      self.import_retry_count = 1
     end
+
     errors << error_text if error_text
 
     [errors, dtaus]
   end
 
-  def validate_import_row(row)
+  def import_row_valid?(row)
     errors = []
-    @errors << "#{row['ACTIVITY_ID']}: UMSATZ_KEY #{row['UMSATZ_KEY']} is not allowed" unless %w[10 16].include? row['UMSATZ_KEY']
+    errors << "#{row['ACTIVITY_ID']}: UMSATZ_KEY #{row['UMSATZ_KEY']} is not allowed" unless %w[10 16].include? row['UMSATZ_KEY']
     @errors += errors
 
     errors.empty?
