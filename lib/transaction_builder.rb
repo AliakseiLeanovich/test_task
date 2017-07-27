@@ -16,7 +16,7 @@ module TransactionBuilder
   end
 
   def local_path(filename)
-    "#{Rails.root.to_s}/private/data/download/#{filename}"
+    "#{Rails.root}/private/data/download/#{filename}"
   end
 
   def remote_path(filename)
@@ -41,11 +41,11 @@ module TransactionBuilder
     begin
       result = import_file(file, validation_only)
     rescue => e
-      result = { :errors => [e.to_s], :success => ['data lost'] }
+      result = { errors: [e.to_s], success: ['data lost'] }
     end
 
     if result[:errors].blank?
-      result = "Success"
+      result = 'Success'
     else
       result = "Imported: #{result[:success].join(', ')} Errors: #{result[:errors].join('; ')}"
     end
@@ -58,15 +58,15 @@ module TransactionBuilder
   def import_file(file, validation_only = false)
     @errors = []
     line = 2
-    source_path = "#{Rails.root.to_s}/private/upload"
+    source_path = "#{Rails.root}/private/upload"
     path_and_name = "#{source_path}/csv/tmp_mraba/DTAUS#{Time.now.strftime('%Y%m%d_%H%M%S')}"
 
     FileUtils.mkdir_p "#{source_path}/csv"
     FileUtils.mkdir_p "#{source_path}/csv/tmp_mraba"
 
-    @dtaus = Mraba::Transaction.define_dtaus('RS', 8888888888, 99999999, 'Credit collection')
+    @dtaus = Mraba::Transaction.define_dtaus('RS', 8_888_888_888, 99_999_999, 'Credit collection')
     success_rows = []
-    import_rows = CSV.read(file, { :col_sep => ';', :headers => true, :skip_blanks => true } ).map{ |r| [r.to_hash['ACTIVITY_ID'], r.to_hash] }
+    import_rows = CSV.read(file, col_sep: ';', headers: true, skip_blanks: true).map { |r| [r.to_hash['ACTIVITY_ID'], r.to_hash] }
 
     import_rows.each do |index, row|
       next if index.blank?
@@ -77,19 +77,19 @@ module TransactionBuilder
       success_rows << row['ACTIVITY_ID']
     end
 
-    if @errors.empty? and !validation_only
+    if @errors.empty? && !validation_only
       @dtaus.add_datei("#{path_and_name}_201_mraba.csv") unless @dtaus.is_empty?
     end
 
-    {:success => success_rows, :errors => @errors}
+    { success: success_rows, errors: @errors }
   end
 
   def import_file_row(row, validation_only, errors, dtaus)
     case transaction_type(row)
-      when 'AccountTransfer' then add_account_transfer(row, validation_only)
-      when 'BankTransfer' then add_bank_transfer(row, validation_only)
-      when 'Lastschrift' then add_dta_row(dtaus, row, validation_only)
-      else errors << "#{row['ACTIVITY_ID']}: Transaction type not found"
+    when 'AccountTransfer' then add_account_transfer(row, validation_only)
+    when 'BankTransfer' then add_bank_transfer(row, validation_only)
+    when 'Lastschrift' then add_dta_row(dtaus, row, validation_only)
+    else errors << "#{row['ACTIVITY_ID']}: Transaction type not found"
     end
 
     [errors, dtaus]
@@ -105,7 +105,7 @@ module TransactionBuilder
         import_file_row(row, validation_only, errors, dtaus)
         break
       rescue => e
-        error_text = "#{row['ACTIVITY_ID']}: #{e.to_s}"
+        error_text = "#{row['ACTIVITY_ID']}: #{e}"
         break
       end
     end
@@ -116,21 +116,21 @@ module TransactionBuilder
 
   def validate_import_row(row)
     errors = []
-    @errors << "#{row['ACTIVITY_ID']}: UMSATZ_KEY #{row['UMSATZ_KEY']} is not allowed" unless %w(10 16).include?row['UMSATZ_KEY']
+    @errors << "#{row['ACTIVITY_ID']}: UMSATZ_KEY #{row['UMSATZ_KEY']} is not allowed" unless %w[10 16].include? row['UMSATZ_KEY']
     @errors += errors
 
-    errors.size == 0
+    errors.empty?
   end
 
   def transaction_type(row)
-    if row['SENDER_BLZ'] == '00000000' and row['RECEIVER_BLZ'] == '00000000'
-      return 'AccountTransfer'
-    elsif row['SENDER_BLZ'] == '00000000' and row['UMSATZ_KEY'] == '10'
-      return 'BankTransfer'
-    elsif row['RECEIVER_BLZ'] == '70022200' and ['16'].include?row['UMSATZ_KEY']
-      return 'Lastschrift'
+    if row['SENDER_BLZ'] == '00000000' && row['RECEIVER_BLZ'] == '00000000'
+      'AccountTransfer'
+    elsif row['SENDER_BLZ'] == '00000000' && row['UMSATZ_KEY'] == '10'
+      'BankTransfer'
+    elsif row['RECEIVER_BLZ'] == '70022200' && ['16'].include?(row['UMSATZ_KEY'])
+      'Lastschrift'
     else
-      return false
+      false
     end
   end
 
@@ -149,7 +149,7 @@ module TransactionBuilder
     return @errors.last unless sender
 
     if row['DEPOT_ACTIVITY_ID'].blank?
-      account_transfer = sender.credit_account_transfers.build(:amount => row['AMOUNT'].to_f, :subject => import_subject(row), :receiver_multi => row['RECEIVER_KONTO'])
+      account_transfer = sender.credit_account_transfers.build(amount: row['AMOUNT'].to_f, subject: import_subject(row), receiver_multi: row['RECEIVER_KONTO'])
       account_transfer.date = row['ENTRY_DATE'].to_date
       account_transfer.skip_mobile_tan = true
     else
@@ -176,11 +176,11 @@ module TransactionBuilder
     return @errors.last unless sender
 
     bank_transfer = sender.build_transfer(
-      :amount => row['AMOUNT'].to_f,
-      :subject => import_subject(row),
-      :rec_holder => row['RECEIVER_NAME'],
-      :rec_account_number => row['RECEIVER_KONTO'],
-      :rec_bank_code => row['RECEIVER_BLZ']
+      amount: row['AMOUNT'].to_f,
+      subject: import_subject(row),
+      rec_holder: row['RECEIVER_NAME'],
+      rec_account_number: row['RECEIVER_KONTO'],
+      rec_bank_code: row['RECEIVER_BLZ']
     )
 
     if !bank_transfer.valid?
@@ -190,8 +190,8 @@ module TransactionBuilder
     end
   end
 
-  def add_dta_row(dtaus, row, validation_only)
-    if !dtaus.valid_sender?(row['SENDER_KONTO'],row['SENDER_BLZ'])
+  def add_dta_row(dtaus, row, _validation_only)
+    unless dtaus.valid_sender?(row['SENDER_KONTO'], row['SENDER_BLZ'])
       return @errors << "#{row['ACTIVITY_ID']}: BLZ/Konto not valid, csv fiile not written"
     end
     holder = Iconv.iconv('ascii//translit', 'utf-8', row['SENDER_NAME']).to_s.gsub(/[^\w^\s]/, '')
@@ -199,9 +199,9 @@ module TransactionBuilder
   end
 
   def import_subject(row)
-    subject = ""
+    subject = ''
 
-    for id in (1..14).to_a
+    (1..14).each do |id|
       subject += row["DESC#{id}"].to_s unless row["DESC#{id}"].blank?
     end
 

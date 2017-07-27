@@ -1,7 +1,7 @@
 source 'https://rubygems.org'
 
-gem 'net-sftp'
 gem 'activesupport'
+gem 'net-sftp'
 
 gem 'rspec'
 gem 'rspec-mocks'
