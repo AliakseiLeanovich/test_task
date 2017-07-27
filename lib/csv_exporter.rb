@@ -26,9 +26,6 @@ class CsvExporter
       Net::SFTP.start(@sftp_server, "some-ftp-user", :keys => ["path-to-credentials"]) do |sftp|
         sftp_entries = available_entries(sftp)
         sftp_entries.each do |entry|
-          next unless entry[-4, 4] == '.csv'
-          next unless sftp.dir.entries("/data/files/csv").map{ |e| e.name }.include?(entry + '.start')
-
           sftp.download!(remote_path(entry), local_path(entry))
           sftp.remove!(remote_path(entry) + '.start')
 
@@ -45,7 +42,11 @@ class CsvExporter
     end
 
     def available_entries(sftp)
-      sftp.dir.entries("/data/files/csv").map{ |e| e.name }.sort
+      remote_files = sftp.dir.entries("/data/files/csv").map{ |e| e.name }
+      remote_files.select do |filename|
+        filename[-4, 4] == '.csv' &&
+        remote_files.include?(filename + '.start')
+      end.sort
     end
 
     def local_path(filename)
