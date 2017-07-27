@@ -12,25 +12,56 @@ class CsvExporter
 
   def self.transfer_and_import(send_email = true)
     @errors = []
-    FileUtils.mkdir_p "#{Rails.root.to_s}/private/data"
-    FileUtils.mkdir_p "#{Rails.root.to_s}/private/data/download"
 
-    Net::SFTP.start(@sftp_server, "some-ftp-user", :keys => ["path-to-credentials"]) do |sftp|
-      sftp_entries = sftp.dir.entries("/data/files/csv").map{ |e| e.name }.sort
-      sftp_entries.each do |entry|
-        next unless entry[-4, 4] == '.csv'
-        next unless sftp.dir.entries("/data/files/csv").map{ |e| e.name }.include?(entry + '.start')
+    local_files = transfer_from_remote
 
-        file_local = "#{Rails.root.to_s}/private/data/download/#{entry}"
-        file_remote = "/data/files/csv/#{entry}"
+    import_from_local_files(local_files, send_email)
+  end
 
-        sftp.download!(file_remote, file_local)
-        sftp.remove!(file_remote + '.start')
+  class << self
+    def transfer_from_remote
+      build_local_folders
+      local_files = []
 
-        result = import(file_local)
+      Net::SFTP.start(@sftp_server, "some-ftp-user", :keys => ["path-to-credentials"]) do |sftp|
+        sftp_entries = available_entries(sftp)
+        sftp_entries.each do |entry|
+          next unless entry[-4, 4] == '.csv'
+          next unless sftp.dir.entries("/data/files/csv").map{ |e| e.name }.include?(entry + '.start')
+
+          sftp.download!(remote_path(entry), local_path(entry))
+          sftp.remove!(remote_path(entry) + '.start')
+
+          local_files << entry
+        end
+      end
+
+      local_files
+    end
+
+    def build_local_folders
+      FileUtils.mkdir_p "#{Rails.root.to_s}/private/data"
+      FileUtils.mkdir_p "#{Rails.root.to_s}/private/data/download"
+    end
+
+    def available_entries(sftp)
+      sftp.dir.entries("/data/files/csv").map{ |e| e.name }.sort
+    end
+
+    def local_path(filename)
+      "#{Rails.root.to_s}/private/data/download/#{filename}"
+    end
+
+    def remote_path(filename)
+      "/data/files/csv/#{filename}"
+    end
+
+    def import_from_local_files(file_names, send_email)
+      file_names.each do |entry|
+        result = import(local_path(entry))
 
         if result == 'Success'
-          File.delete(file_local)
+          File.delete(local_path(entry))
           BackendMailer.send_import_feedback('Successful Import', "Import of the file #{entry} done.") if send_email
         else
           error_content = ["Import of the file #{entry} failed with errors:", result].join("\n")
