@@ -6,18 +6,18 @@ require 'csv'
 
 require_relative './transaction_builder'
 
+SERVER_URL =
+  if Rails.env == 'production'
+    'csv.example.com/endpoint/'
+  else
+    '0.0.0.0:2020'
+  end
+SFTP_PARAMS = [SERVER_URL, 'some-ftp-user', keys: ['path-to-credentials']].freeze
+
 class CsvExporter
   extend TransactionBuilder
 
-  SERVER_URL =
-    if Rails.env == 'production'
-      'csv.example.com/endpoint/'
-    else
-      '0.0.0.0:2020'
-    end
-  SFTP_PARAMS = [SERVER_URL, 'some-ftp-user', keys: ['path-to-credentials']].freeze
   @errors = []
-
   cattr_accessor :import_retry_count
 
   class << self
