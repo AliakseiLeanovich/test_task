@@ -44,11 +44,12 @@ module TransactionBuilder
       result = { errors: [e.to_s], success: ['data lost'] }
     end
 
-    if result[:errors].blank?
-      result = 'Success'
-    else
-      result = "Imported: #{result[:success].join(', ')} Errors: #{result[:errors].join('; ')}"
-    end
+    result =
+      if result[:errors].blank?
+        'Success'
+      else
+        "Imported: #{result[:success].join(', ')} Errors: #{result[:errors].join('; ')}"
+      end
 
     Rails.logger.info "CsvExporter#import time: #{Time.now.to_formatted_s(:db)} Imported #{file}: #{result}"
 

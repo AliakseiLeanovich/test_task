@@ -2,8 +2,6 @@ require 'bundler/setup'
 require 'active_support/all'
 
 module Rails
-  extend self
-
   def env
     'test'
   end
@@ -17,6 +15,8 @@ module Rails
       def info(*args); end
     end.new
   end
+
+  module_function :env, :root, :logger
 end
 
 RSpec.configure do |config|

@@ -23,9 +23,8 @@ module Mraba
 end
 
 module BackendMailer
-  extend self
-
   def send_import_feedback(*args); end
+  module_function :send_import_feedback
 end
 
 describe CsvExporter do

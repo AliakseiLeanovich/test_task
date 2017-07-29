@@ -9,12 +9,13 @@ require_relative './transaction_builder'
 class CsvExporter
   extend TransactionBuilder
 
-  @sftp_server =
+  SERVER_URL =
     if Rails.env == 'production'
       'csv.example.com/endpoint/'
     else
       '0.0.0.0:2020'
     end
+  SFTP_PARAMS = [SERVER_URL, 'some-ftp-user', keys: ['path-to-credentials']].freeze
   @errors = []
 
   cattr_accessor :import_retry_count
@@ -30,7 +31,7 @@ class CsvExporter
     def transfer_from_remote
       build_local_folders
       local_files = []
-      Net::SFTP.start(@sftp_server, 'some-ftp-user', keys: ['path-to-credentials']) do |sftp|
+      Net::SFTP.start(*SFTP_PARAMS) do |sftp|
         sftp_entries = available_entries(sftp)
         sftp_entries.each do |entry|
           sftp.download!(remote_path(entry), local_path(entry))
@@ -63,7 +64,7 @@ class CsvExporter
       File.open(error_file, 'w') do |f|
         f.write(result)
       end
-      Net::SFTP.start(@sftp_server, 'some-ftp-user', keys: ['path-to-credentials']) do |sftp|
+      Net::SFTP.start(*SFTP_PARAMS) do |sftp|
         sftp.upload!(error_file, "/data/files/batch_processed/#{entry}")
       end
     end
