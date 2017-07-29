@@ -57,7 +57,7 @@ module TransactionBuilder
 
   def import_file(file, validation_only = false)
     @errors = []
-    line = 2
+
     source_path = "#{Rails.root}/private/upload"
     path_and_name = "#{source_path}/csv/tmp_mraba/DTAUS#{Time.now.strftime('%Y%m%d_%H%M%S')}"
 
@@ -72,7 +72,6 @@ module TransactionBuilder
       next if index.blank?
       break unless validate_import_row(row)
       errors, dtaus = import_file_row_with_error_handling(row, validation_only, @errors, @dtaus)
-      line += 1
       break unless @errors.empty?
       success_rows << row['ACTIVITY_ID']
     end
