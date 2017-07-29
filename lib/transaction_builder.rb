@@ -65,7 +65,7 @@ module TransactionBuilder
     import_rows.each do |index, row|
       next if index.blank?
       break unless validate_import_row(row)
-      errors, dtaus = import_file_row_with_error_handling(row, validation_only, @errors, @dtaus)
+      import_file_row_with_error_handling(row, validation_only, @errors, @dtaus)
       break unless @errors.empty?
       success_rows << row['ACTIVITY_ID']
     end
