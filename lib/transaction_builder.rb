@@ -58,12 +58,6 @@ module TransactionBuilder
   def import_file(file, validation_only = false)
     @errors = []
 
-    source_path = "#{Rails.root}/private/upload"
-    path_and_name = "#{source_path}/csv/tmp_mraba/DTAUS#{Time.now.strftime('%Y%m%d_%H%M%S')}"
-
-    FileUtils.mkdir_p "#{source_path}/csv"
-    FileUtils.mkdir_p "#{source_path}/csv/tmp_mraba"
-
     @dtaus = Mraba::Transaction.define_dtaus('RS', 8_888_888_888, 99_999_999, 'Credit collection')
     success_rows = []
     import_rows = CSV.read(file, col_sep: ';', headers: true, skip_blanks: true).map { |r| [r.to_hash['ACTIVITY_ID'], r.to_hash] }
@@ -76,11 +70,19 @@ module TransactionBuilder
       success_rows << row['ACTIVITY_ID']
     end
 
-    if @errors.empty? && !validation_only
-      @dtaus.add_datei("#{path_and_name}_201_mraba.csv") unless @dtaus.is_empty?
-    end
+    add_datei if @errors.empty? && !validation_only && !@dtaus.is_empty?
 
     { success: success_rows, errors: @errors }
+  end
+
+  def add_datei
+    source_path = "#{Rails.root}/private/upload"
+    path_and_name = "#{source_path}/csv/tmp_mraba/DTAUS#{Time.now.strftime('%Y%m%d_%H%M%S')}"
+
+    FileUtils.mkdir_p "#{source_path}/csv"
+    FileUtils.mkdir_p "#{source_path}/csv/tmp_mraba"
+
+    @dtaus.add_datei("#{path_and_name}_201_mraba.csv")
   end
 
   def import_file_row(row, validation_only, errors, dtaus)
