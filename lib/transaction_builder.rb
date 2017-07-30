@@ -98,20 +98,12 @@ module TransactionBuilder
   end
 
   def import_file_row_with_error_handling(row, validation_only, errors, dtaus)
-    error_text = nil
-    self.import_retry_count = 0
-    5.times do
-      self.import_retry_count += 1
-      error_text = nil
-      begin
-        import_file_row(row, validation_only, errors, dtaus)
-        break
-      rescue => e
-        error_text = "#{row['ACTIVITY_ID']}: #{e}"
-        break
-      end
+    begin
+      import_file_row(row, validation_only, errors, dtaus)
+    rescue => e
+      error_text = "#{row['ACTIVITY_ID']}: #{e}"
+      errors << error_text
     end
-    errors << error_text if error_text
 
     [errors, dtaus]
   end

@@ -19,7 +19,6 @@ class CsvExporter
   extend TransactionBuilder
 
   @errors = []
-  cattr_accessor :import_retry_count
 
   class << self
     def transfer_and_import(send_email = true)
