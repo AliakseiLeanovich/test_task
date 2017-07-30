@@ -13,7 +13,11 @@ SERVER_URL =
   else
     '0.0.0.0:2020'
   end
-SFTP_PARAMS = [SERVER_URL, 'some-ftp-user', keys: ['path-to-credentials']].freeze
+SFTP_PARAMS = [
+  SERVER_URL,
+  'some-ftp-user',
+  keys: ['path-to-credentials']
+].freeze
 
 class CsvExporter
   extend TransactionBuilder
@@ -32,15 +36,13 @@ class CsvExporter
       build_local_folders
       local_files = []
       Net::SFTP.start(*SFTP_PARAMS) do |sftp|
-        sftp_entries = available_entries(sftp)
-        sftp_entries.each do |entry|
+        available_entries(sftp).each do |entry|
           sftp.download!(remote_path(entry), local_path(entry))
           sftp.remove!(remote_path(entry) + '.start')
 
           local_files << entry
         end
       end
-      local_files
     end
 
     def build_local_folders

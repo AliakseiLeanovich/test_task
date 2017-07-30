@@ -51,7 +51,8 @@ module TransactionBuilder
         "Imported: #{result[:success].join(', ')} Errors: #{result[:errors].join('; ')}"
       end
 
-    Rails.logger.info "CsvExporter#import time: #{Time.now.to_formatted_s(:db)} Imported #{file}: #{result}"
+    Rails.logger.info "CsvExporter#import time: \
+                       #{Time.now.to_formatted_s(:db)} Imported #{file}: #{result}"
 
     result
   end
@@ -61,7 +62,14 @@ module TransactionBuilder
 
     @dtaus = Mraba::Transaction.define_dtaus('RS', 8_888_888_888, 99_999_999, 'Credit collection')
     success_rows = []
-    import_rows = CSV.read(file, col_sep: ';', headers: true, skip_blanks: true).map { |r| [r.to_hash['ACTIVITY_ID'], r.to_hash] }
+    import_rows = CSV.read(
+      file,
+      col_sep: ';',
+      headers: true,
+      skip_blanks: true
+    ).map do |r|
+      [r.to_hash['ACTIVITY_ID'], r.to_hash]
+    end
 
     import_rows.each do |index, row|
       next if index.blank?
@@ -104,7 +112,9 @@ module TransactionBuilder
 
   def validate_import_row(row)
     errors = []
-    @errors << "#{row['ACTIVITY_ID']}: UMSATZ_KEY #{row['UMSATZ_KEY']} is not allowed" unless %w[10 16].include? row['UMSATZ_KEY']
+    unless %w[10 16].include? row['UMSATZ_KEY']
+      @errors << "#{row['ACTIVITY_ID']}: UMSATZ_KEY #{row['UMSATZ_KEY']} is not allowed"
+    end
     @errors += errors
 
     errors.empty?
@@ -137,7 +147,11 @@ module TransactionBuilder
     return @errors.last unless sender
 
     if row['DEPOT_ACTIVITY_ID'].blank?
-      account_transfer = sender.credit_account_transfers.build(amount: row['AMOUNT'].to_f, subject: import_subject(row), receiver_multi: row['RECEIVER_KONTO'])
+      account_transfer = sender.credit_account_transfers.build(
+        amount: row['AMOUNT'].to_f,
+        subject: import_subject(row),
+        receiver_multi: row['RECEIVER_KONTO']
+      )
       account_transfer.date = row['ENTRY_DATE'].to_date
       account_transfer.skip_mobile_tan = true
     else
@@ -146,16 +160,22 @@ module TransactionBuilder
         @errors << "#{row['ACTIVITY_ID']}: AccountTransfer not found"
         return
       elsif account_transfer.state != 'pending'
-        @errors << "#{row['ACTIVITY_ID']}: AccountTransfer state expected 'pending' but was '#{account_transfer.state}'"
+        @errors << "#{row['ACTIVITY_ID']}: AccountTransfer state \
+                    expected 'pending' but was '#{account_transfer.state}'"
         return
       else
         account_transfer.subject = import_subject(row)
       end
     end
     if account_transfer && !account_transfer.valid?
-      @errors << "#{row['ACTIVITY_ID']}: AccountTransfer validation error(s): #{account_transfer.errors.full_messages.join('; ')}"
+      @errors << "#{row['ACTIVITY_ID']}: AccountTransfer validation error(s): \
+                  #{account_transfer.errors.full_messages.join('; ')}"
     elsif !validation_only
-      row['DEPOT_ACTIVITY_ID'].blank? ? account_transfer.save! : account_transfer.complete_transfer!
+      if row['DEPOT_ACTIVITY_ID'].blank?
+        account_transfer.save!
+      else
+        account_transfer.complete_transfer!
+      end
     end
   end
 
@@ -172,7 +192,8 @@ module TransactionBuilder
     )
 
     if !bank_transfer.valid?
-      @errors << "#{row['ACTIVITY_ID']}: BankTransfer validation error(s): #{bank_transfer.errors.full_messages.join('; ')}"
+      @errors << "#{row['ACTIVITY_ID']}: BankTransfer validation error(s): \
+                  #{bank_transfer.errors.full_messages.join('; ')}"
     elsif !validation_only
       bank_transfer.save!
     end
@@ -182,8 +203,22 @@ module TransactionBuilder
     unless dtaus.valid_sender?(row['SENDER_KONTO'], row['SENDER_BLZ'])
       return @errors << "#{row['ACTIVITY_ID']}: BLZ/Konto not valid, csv fiile not written"
     end
-    holder = Iconv.iconv('ascii//translit', 'utf-8', row['SENDER_NAME']).to_s.gsub(/[^\w^\s]/, '')
-    dtaus.add_buchung(row['SENDER_KONTO'], row['SENDER_BLZ'], holder, BigDecimal(row['AMOUNT']).abs, import_subject(row))
+
+    dtaus.add_buchung(
+      row['SENDER_KONTO'],
+      row['SENDER_BLZ'],
+      convert_sender_name(row['SENDER_NAME']),
+      BigDecimal(row['AMOUNT']).abs,
+      import_subject(row)
+    )
+  end
+
+  def convert_sender_name(sender_name)
+    Iconv.iconv(
+      'ascii//translit',
+      'utf-8',
+      sender_name
+    ).to_s.gsub(/[^\w^\s]/, '')
   end
 
   def import_subject(row)
