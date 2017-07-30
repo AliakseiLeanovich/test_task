@@ -1,5 +1,6 @@
 # encoding: utf-8
 
+require 'active_support/all'
 require 'net/sftp'
 require 'iconv'
 require 'csv'

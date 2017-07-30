@@ -1,5 +1,4 @@
 require 'bundler/setup'
-require 'active_support/all'
 
 module Rails
   def env
