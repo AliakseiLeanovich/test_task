@@ -121,7 +121,6 @@ describe CsvExporter do
 
   describe '.import_file_row_with_error_handling' do
     before(:each) do
-      @errors = []
       @dtaus = double
       @row = {
         'RECEIVER_BLZ' => '00000000',
@@ -133,15 +132,15 @@ describe CsvExporter do
     it 'successful import' do
       CsvExporter.stub(:add_account_transfer).and_return(true)
       CsvExporter.import_file_row_with_error_handling(
-        @row, false, @errors, @dtaus
-      ).should be == [@errors, @dtaus]
+        @row, false, @dtaus
+      ).should be == true
     end
 
     it 'handles exception in row' do
       CsvExporter.stub(:add_account_transfer).and_raise(RuntimeError)
       CsvExporter.import_file_row_with_error_handling(
-        @row, false, @errors, @dtaus
-      )[0].should be == ['1: RuntimeError']
+        @row, false, @dtaus
+      ).should be == false
     end
   end
 

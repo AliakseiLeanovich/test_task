@@ -66,7 +66,7 @@ module TransactionBuilder
     import_rows.each do |index, row|
       next if index.blank?
       break unless validate_import_row(row)
-      import_file_row_with_error_handling(row, validation_only, @errors, @dtaus)
+      import_file_row_with_error_handling(row, validation_only, @dtaus)
       break unless @errors.empty?
       success_rows << row['ACTIVITY_ID']
     end
@@ -86,26 +86,20 @@ module TransactionBuilder
     @dtaus.add_datei("#{path_and_name}_201_mraba.csv")
   end
 
-  def import_file_row(row, validation_only, errors, dtaus)
+  def import_file_row(row, validation_only, dtaus)
     case transaction_type(row)
     when 'AccountTransfer' then add_account_transfer(row, validation_only)
     when 'BankTransfer' then add_bank_transfer(row, validation_only)
     when 'Lastschrift' then add_dta_row(dtaus, row, validation_only)
-    else errors << "#{row['ACTIVITY_ID']}: Transaction type not found"
+    else @errors << "#{row['ACTIVITY_ID']}: Transaction type not found"
     end
-
-    [errors, dtaus]
   end
 
-  def import_file_row_with_error_handling(row, validation_only, errors, dtaus)
-    begin
-      import_file_row(row, validation_only, errors, dtaus)
-    rescue => e
-      error_text = "#{row['ACTIVITY_ID']}: #{e}"
-      errors << error_text
-    end
-
-    [errors, dtaus]
+  def import_file_row_with_error_handling(row, validation_only, dtaus)
+    import_file_row(row, validation_only, dtaus)
+  rescue => e
+    @errors << "#{row['ACTIVITY_ID']}: #{e}"
+    false
   end
 
   def validate_import_row(row)
